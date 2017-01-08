@@ -190,13 +190,15 @@ namespace Nexus.Client.ModRepositories.Nexus
 		{
 			FileServerZones = new List<FileServerZone>();
 			FileServerZones.Add(new FileServerZone());
-			//FileServerZones.Add(new FileServerZone("us", "U.S.A.", 2, global::Nexus.Client.Properties.Resources.us, false));
-			FileServerZones.Add(new FileServerZone("us.p2", "U.S. - Dallas Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
-			FileServerZones.Add(new FileServerZone("us.p1", "U.S. - Washington Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
-			FileServerZones.Add(new FileServerZone("eu.p1", "E.U. - Kent Premium", 1, global::Nexus.Client.Properties.Resources.europeanunion, true));
-			//FileServerZones.Add(new FileServerZone("eu", "European Union", 1, global::Nexus.Client.Properties.Resources.europeanunion, false));
+            //FileServerZones.Add(new FileServerZone("us", "U.S.A.", 2, global::Nexus.Client.Properties.Resources.us, false));
+            FileServerZones.Add(new FileServerZone("na.ca", "N.A. - North America Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
+   //         FileServerZones.Add(new FileServerZone("us.p2", "U.S. - Dallas Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
+			//FileServerZones.Add(new FileServerZone("us.p1", "U.S. - Washington Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
+			FileServerZones.Add(new FileServerZone("eu.p1", "E.U. - UK Premium", 1, global::Nexus.Client.Properties.Resources.europeanunion, true));
+            FileServerZones.Add(new FileServerZone("eu.fr", "E.U. - Europe Premium", 2, global::Nexus.Client.Properties.Resources.europeanunion, true));
+            //FileServerZones.Add(new FileServerZone("eu", "European Union", 1, global::Nexus.Client.Properties.Resources.europeanunion, false));
 
-			RepositoryFileServerZones = new List<FileServerZone>();
+            RepositoryFileServerZones = new List<FileServerZone>();
 			RepositoryFileServerZones.Add(new FileServerZone());
 			//RepositoryFileServerZones.Add(new FileServerZone("en", "England", 1, global::Nexus.Client.Properties.Resources.en, false));
 			//RepositoryFileServerZones.Add(new FileServerZone("us.w", "US West Coast", 2, global::Nexus.Client.Properties.Resources.us, false));
@@ -204,10 +206,12 @@ namespace Nexus.Client.ModRepositories.Nexus
 			//RepositoryFileServerZones.Add(new FileServerZone("us.c", "US Central", 2, global::Nexus.Client.Properties.Resources.us, false));
 			//RepositoryFileServerZones.Add(new FileServerZone("nl", "Netherlands", 1, global::Nexus.Client.Properties.Resources.nl, false));
 			//RepositoryFileServerZones.Add(new FileServerZone("cz", "Czech Republic", 1, global::Nexus.Client.Properties.Resources.cz, false));
-			RepositoryFileServerZones.Add(new FileServerZone("us.p2", "U.S. - Dallas Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
-			RepositoryFileServerZones.Add(new FileServerZone("us.p1", "U.S. - Washington Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
-			RepositoryFileServerZones.Add(new FileServerZone("eu.p1", "E.U. - Kent Premium", 1, global::Nexus.Client.Properties.Resources.europeanunion, true));
-		}
+			//RepositoryFileServerZones.Add(new FileServerZone("us.p2", "U.S. - Dallas Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
+			//RepositoryFileServerZones.Add(new FileServerZone("us.p1", "U.S. - Washington Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
+            RepositoryFileServerZones.Add(new FileServerZone("na.ca", "N.A. - North America Premium", 2, global::Nexus.Client.Properties.Resources.us, true));
+            RepositoryFileServerZones.Add(new FileServerZone("eu.p1", "E.U. - UK Premium", 1, global::Nexus.Client.Properties.Resources.europeanunion, true));
+            RepositoryFileServerZones.Add(new FileServerZone("eu.fr", "E.U. - Europe Premium", 1, global::Nexus.Client.Properties.Resources.europeanunion, true));
+        }
 
 		/// <summary>
 		/// Sets the service endpoint to use for the given game mode.
@@ -218,6 +222,11 @@ namespace Nexus.Client.ModRepositories.Nexus
 		{
 			switch (p_gmdGameMode.ModeId)
 			{
+				case "BreakingWheel":
+					m_strWebsite = "www.nexusmods.com/breakingwheel";
+					m_strEndpoint = "BWNexusREST";
+					m_intRemoteGameId = 1767;
+					break;
 				case "DragonAge":
 					m_strWebsite = "www.nexusmods.com/dragonage";
 					m_strEndpoint = "DAONexusREST";
@@ -425,7 +434,7 @@ namespace Nexus.Client.ModRepositories.Nexus
 			if (intCount > 3)
 			{
 				string strCheckName = Path.GetFileName(p_strFilename);
-				strCheckName = strCheckName.Substring(GetNthIndex(strCheckName, '-', intCount - 3));
+				strCheckName = strCheckName.Substring(GetNthIndex(strCheckName, '-', 1));
 				mchModId = rgxModId.Match(strCheckName);
 				if (!mchModId.Success)
 				{
@@ -455,7 +464,8 @@ namespace Nexus.Client.ModRepositories.Nexus
 				if (mifInfoCandidate != null)
 				{
 					IList<IModFileInfo> lstFiles = GetModFileInfo(strId);
-					Int32 intBestFoundWordCount = 0;
+					int intBestFoundWordCount = 0;
+					int intValidWordCount = 0;
 					foreach (IModFileInfo mfiFile in lstFiles)
 					{
 						if (mfiFile.Filename.Equals(strFilename, StringComparison.OrdinalIgnoreCase) ||
@@ -465,11 +475,15 @@ namespace Nexus.Client.ModRepositories.Nexus
 							mifInfo.HumanReadableVersion = mfiFile.HumanReadableVersion;
 							break;
 						}
-						Int32 intFoundWordCount = 0;
+						int intFoundWordCount = 0;
 						foreach (string strWord in strFilenameWords)
 						{
-							if (mfiFile.Filename.IndexOf(strWord, StringComparison.OrdinalIgnoreCase) > -1)
-								intFoundWordCount++;
+							if (strWord.Length > 2)
+							{
+								intValidWordCount++;
+								if (mfiFile.Filename.IndexOf(strWord, StringComparison.OrdinalIgnoreCase) > -1)
+									intFoundWordCount++;
+							}
 						}
 						if (intFoundWordCount > intBestFoundWordCount)
 							intBestFoundWordCount = intFoundWordCount;
@@ -478,7 +492,11 @@ namespace Nexus.Client.ModRepositories.Nexus
 						break;
 
 					if (intBestFoundWordCount > 0)
-						lstCandidates.Add(new KeyValuePair<Int32, IModInfo>(intBestFoundWordCount, mifInfoCandidate));
+					{
+						int intWords = intValidWordCount / 2;
+						if ((strFilenameWords.Length == 1) || (intValidWordCount == 1)  || (intBestFoundWordCount > intWords))
+							lstCandidates.Add(new KeyValuePair<Int32, IModInfo>(intBestFoundWordCount, mifInfoCandidate));
+					}
 				}
 			}
 			if ((mifInfo == null) && !lstCandidates.IsNullOrEmpty())

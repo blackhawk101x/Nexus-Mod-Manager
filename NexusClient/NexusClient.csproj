@@ -47,6 +47,7 @@
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Debug\NexusClient.XML</DocumentationFile>
     <Prefer32Bit>false</Prefer32Bit>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -677,9 +678,6 @@
     <Reference Include="ObjectListView, Version=2.8.0.20711, Culture=neutral, PublicKeyToken=b1c5bf581481bcd4, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\lib\ObjectListView.dll</HintPath>
-    </Reference>
-    <Reference Include="RestSharp">
-      <HintPath>..\RestSharp.dll</HintPath>
     </Reference>
     <Reference Include="SevenZipSharp, Version=0.64.3890.29348, Culture=neutral, PublicKeyToken=20de82c62b055c88, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>

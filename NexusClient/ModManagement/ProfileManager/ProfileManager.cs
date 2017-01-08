@@ -930,12 +930,13 @@ namespace Nexus.Client.ModManagement
 		/// <summary>
 		/// Updates the profile.
 		/// </summary>
-		public void UpdateProfile(IModProfile p_impModProfile, byte[] p_bteIniEdits, byte[] p_bteLoadOrder, string[] p_strOptionalFiles)
+		public void UpdateProfile(IModProfile p_impModProfile, byte[] p_bteIniEdits, byte[] p_bteLoadOrder, string[] p_strOptionalFiles, out string p_strError)
 		{
+			p_strError = null;
 			if (p_impModProfile.Id == m_strCurrentProfileId)
 				UpdateCurrentProfileModCount();
 
-			SaveProfile(p_impModProfile, null, p_bteIniEdits, p_bteLoadOrder, p_strOptionalFiles);
+			p_strError = SaveProfile(p_impModProfile, null, p_bteIniEdits, p_bteLoadOrder, p_strOptionalFiles);
 
 			if (p_impModProfile.Id == m_strCurrentProfileId)
 				m_tslProfiles.Remove(CurrentProfile);
@@ -981,7 +982,10 @@ namespace Nexus.Client.ModManagement
 				if (ModInfo != null)
 				{
 					VirtualModInfo vmiModInfo = new VirtualModInfo(ModInfo);
-					vmiModInfo.UpdatedDownloadId = kvp.Value;
+					if (string.IsNullOrWhiteSpace(vmiModInfo.DownloadId))
+						vmiModInfo.DownloadId = kvp.Value;
+					else
+						vmiModInfo.UpdatedDownloadId = kvp.Value;
 
 					p_impProfile.ModList.Remove(ModInfo);
 					p_impProfile.ModList.Add(vmiModInfo);
@@ -996,11 +1000,6 @@ namespace Nexus.Client.ModManagement
 				string strProfilePath = Path.Combine(m_strProfileManagerPath, p_impProfile.Id);
 				VirtualModActivator.SaveModList(Path.Combine(strProfilePath, "modlist.xml"), p_impProfile.ModList, p_impProfile.ModFileList);
 			}
-
-
-			//prendere la modlist di questo profilo e cerca in tutti i nodi ModInfo
-			// per modFileName. Se c'è uno dei modfilename presenti nel dictionary
-			// andiamo a scrivere l'updateddownloadid
 		}
 
 		/// <summary>
@@ -1106,14 +1105,17 @@ namespace Nexus.Client.ModManagement
 		}
 
 		/// <summary>
-		/// Updates the profile file.
+		/// Saves the profile file.
 		/// </summary>
-		public void SaveProfile(IModProfile p_impModProfile, byte[] p_bteModList, byte[] p_bteIniList, byte[] p_bteLoadOrder, string[] p_strOptionalFiles)
+		public string SaveProfile(IModProfile p_impModProfile, byte[] p_bteModList, byte[] p_bteIniList, byte[] p_bteLoadOrder, string[] p_strOptionalFiles)
 		{
-			SaveProfile(p_impModProfile, p_bteModList, p_bteIniList, p_bteLoadOrder, p_strOptionalFiles, m_strProfileManagerPath);
+			return SaveProfile(p_impModProfile, p_bteModList, p_bteIniList, p_bteLoadOrder, p_strOptionalFiles, m_strProfileManagerPath);
 		}
 
-		public void SaveProfile(IModProfile p_impModProfile, byte[] p_bteModList, byte[] p_bteIniList, byte[] p_bteLoadOrder, string[] p_strOptionalFiles, string p_strProfileManagerPath)
+		/// <summary>
+		/// Saves the profile file.
+		/// </summary>
+		public string SaveProfile(IModProfile p_impModProfile, byte[] p_bteModList, byte[] p_bteIniList, byte[] p_bteLoadOrder, string[] p_strOptionalFiles, string p_strProfileManagerPath)
 		{
 			if (p_impModProfile != null)
 			{
@@ -1122,9 +1124,15 @@ namespace Nexus.Client.ModManagement
 				if (!Directory.Exists(strProfilePath))
 					Directory.CreateDirectory(strProfilePath);
 
-				if ((m_booUsesPlugin) && (p_bteLoadOrder != null) && (p_bteLoadOrder.Length > 0))
-					File.WriteAllBytes(Path.Combine(strProfilePath, "loadorder.txt"), p_bteLoadOrder);
-
+				try
+				{
+					if ((m_booUsesPlugin) && (p_bteLoadOrder != null) && (p_bteLoadOrder.Length > 0))
+						File.WriteAllBytes(Path.Combine(strProfilePath, "loadorder.txt"), p_bteLoadOrder);
+				}
+				catch (Exception ex)
+				{
+					return "Error: " + ex.Message;
+				}
 				if ((p_bteModList != null) && (p_bteModList.Length > 0))
 					File.WriteAllBytes(Path.Combine(strProfilePath, "modlist.xml"), p_bteModList);
 				else if (VirtualModActivator.VirtualLinks != null)
@@ -1171,6 +1179,8 @@ namespace Nexus.Client.ModManagement
 					}
 				}
 			}
+
+			return null;
 		}
 
 		private byte[] GetProfileBytes(IModProfile p_impModProfile)
@@ -1759,11 +1769,11 @@ namespace Nexus.Client.ModManagement
 		/// <param name="p_booOverrideCategorySetup">Whether to force a global update.</param>
 		/// <param name="p_booMissingDownloadId">Whether to just look for missing download IDs.</param>
 		/// <returns>The background task that will run the updaters.</returns>
-		public IBackgroundTask UpdateMods(List<IMod> p_lstModList, ConfirmActionMethod p_camConfirm, bool p_booOverrideCategorySetup, bool p_booMissingDownloadId, int p_intFlagShare)
+		public IBackgroundTask UpdateMods(List<IMod> p_lstModList, ConfirmActionMethod p_camConfirm, bool p_booOverrideCategorySetup, bool p_booMissingDownloadId)
 		{
 			if (ModRepository.UserStatus != null)
 			{
-				ModUpdateCheckTask mutModUpdateCheck = new ModUpdateCheckTask(ModManager.AutoUpdater, this, ModRepository, p_lstModList, p_booOverrideCategorySetup, p_booMissingDownloadId, p_intFlagShare, ModManager.EnvironmentInfo.Settings.OverrideLocalModNames);
+				ModUpdateCheckTask mutModUpdateCheck = new ModUpdateCheckTask(ModManager.AutoUpdater, this, ModRepository, p_lstModList, p_booOverrideCategorySetup, p_booMissingDownloadId, ModManager.EnvironmentInfo.Settings.OverrideLocalModNames);
 				mutModUpdateCheck.Update(p_camConfirm);
 				return mutModUpdateCheck;
 			}
@@ -1779,9 +1789,9 @@ namespace Nexus.Client.ModManagement
 		/// <param name="p_booOverrideCategorySetup">Whether to force a global update.</param>
 		/// <param name="p_booMissingDownloadId">Whether to just look for missing download IDs.</param>
 		/// <returns>The background task that will run the updaters.</returns>
-		public void AsyncUpdateMods(List<IMod> p_lstModList, ConfirmActionMethod p_camConfirm, bool p_booOverrideCategorySetup, bool p_booMissingDownloadId, int p_intFlagShare)
+		public void AsyncUpdateMods(List<IMod> p_lstModList, ConfirmActionMethod p_camConfirm, bool p_booOverrideCategorySetup, bool p_booMissingDownloadId)
 		{
-			ModUpdateCheckTask mutModUpdateCheck = new ModUpdateCheckTask(ModManager.AutoUpdater, this, ModRepository, p_lstModList, p_booOverrideCategorySetup, p_booMissingDownloadId, p_intFlagShare, ModManager.EnvironmentInfo.Settings.OverrideLocalModNames);
+			ModUpdateCheckTask mutModUpdateCheck = new ModUpdateCheckTask(ModManager.AutoUpdater, this, ModRepository, p_lstModList, p_booOverrideCategorySetup, p_booMissingDownloadId, ModManager.EnvironmentInfo.Settings.OverrideLocalModNames);
 			AsyncUpdateModsTask(mutModUpdateCheck, p_camConfirm);
 		}
 

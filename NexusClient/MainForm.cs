@@ -856,13 +856,20 @@ namespace Nexus.Client
 		/// </summary>
 		private void pmcPluginManager_PluginMoved(object sender, EventArgs e)
 		{
+			string strError;
 			if ((ViewModel.ProfileManager.CurrentProfile != null) && !ViewModel.IsSwitching)
 			{
 				byte[] bteLoadOrder = null;
 				if (ViewModel.GameMode.UsesPlugins)
 				{
 					bteLoadOrder = ViewModel.PluginManagerVM.ExportLoadOrder();
-					ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, null, bteLoadOrder, null);
+					ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, null, bteLoadOrder, null, out strError);
+
+					if (!string.IsNullOrEmpty(strError))
+					{
+						strError = strError + Environment.NewLine + Environment.NewLine + "Unable to automatically save the profile file, please close the program blocking the reported file and manually click on Save Profile from the profiles context menu";
+						MessageBox.Show(strError, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					}
 				}
 			}
 		}
@@ -1080,11 +1087,14 @@ namespace Nexus.Client
 			
 			if ((ViewModel.ProfileManager.CurrentProfile != null) && !ViewModel.IsSwitching)
 			{
-				byte[] bteIniEdits = null;
-				bteIniEdits = ViewModel.ModManager.InstallationLog.GetXMLIniList();
+				//if (e.Action != NotifyCollectionChangedAction.Remove)
+				//{
+				//	byte[] bteIniEdits = null;
+				//	bteIniEdits = ViewModel.ModManager.InstallationLog.GetXMLIniList();
 
-				ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, bteIniEdits, null, null);
-				BindProfileCommands();
+				//	ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, bteIniEdits, null, null);
+				//	BindProfileCommands();
+				//}
 			}
 		}
 
@@ -1109,6 +1119,7 @@ namespace Nexus.Client
 			{
 				string[] strOptionalFiles = null;
 				byte[] bteLoadOrder = null;
+				string strError;
 				if (ViewModel.GameMode.UsesPlugins)
 				{
 					if (ViewModel.GameMode.RequiresOptionalFilesCheckOnProfileSwitch)
@@ -1116,7 +1127,13 @@ namespace Nexus.Client
 							strOptionalFiles = ViewModel.GameMode.GetOptionalFilesList(ViewModel.PluginManager.ActivePlugins.Select(x => x.Filename).ToArray());
 					
 					bteLoadOrder = ViewModel.PluginManagerVM.ExportLoadOrder();
-					ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, null, bteLoadOrder, strOptionalFiles);
+					ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, null, bteLoadOrder, strOptionalFiles, out strError);
+
+					if (!string.IsNullOrEmpty(strError))
+					{
+						strError = strError + Environment.NewLine + Environment.NewLine + "Unable to automatically save the profile file, please close the program blocking the reported file and manually click on Save Profile from the profiles context menu";
+						MessageBox.Show(strError, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					}
 				}
 			}
 		}
@@ -1818,7 +1835,8 @@ namespace Nexus.Client
 					ViewModel.GameMode.SupportedToolsLauncher.LaunchDefaultCommand();
 
 			ViewModel.IsSwitching = false;
-			ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, null, null, null);
+			string strError;
+			ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, null, null, null, out strError);
 			ViewModel.ProfileManager.SetDefaultProfile(ViewModel.ProfileManager.CurrentProfile);	
 			ViewModel.ProfileManager.SaveConfig();
 			mmgModManager.ForceListRefresh();
@@ -2145,15 +2163,22 @@ namespace Nexus.Client
 
 			if (!ViewModel.IsSwitching)
 			{
-
 				UpdateModsFeedback();
 
 				if (ViewModel.ProfileManager.CurrentProfile != null)
 				{
+					string strError;
 					byte[] bteIniEdits = null;
 					bteIniEdits = ViewModel.ModManager.InstallationLog.GetXMLIniList();
 
-					ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, bteIniEdits, null, null);
+					ViewModel.ProfileManager.UpdateProfile(ViewModel.ProfileManager.CurrentProfile, bteIniEdits, null, null, out strError);
+
+					if (!string.IsNullOrEmpty(strError))
+					{
+						strError = strError + Environment.NewLine + Environment.NewLine + "Unable to automatically save the profile file, please close the program blocking the reported file and manually click on Save Profile from the profiles context menu";
+						MessageBox.Show(strError, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					}
+
 					mmgModManager.SetCommandExecutableStatus();
 					BindProfileCommands();
 				}
@@ -2187,7 +2212,12 @@ namespace Nexus.Client
 			}
 			ProgressDialog.ShowDialog(this, e.Argument, false);
 
-			MessageBox.Show("Backup Complete!", "Backup Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+			if (e.Argument.ReturnValue != null)
+			{
+				MessageBox.Show("Unable to create the backup: " + e.Argument.ReturnValue.ToString(), "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+			}
+			else
+				MessageBox.Show("Backup Complete!", "Backup Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
 		}
 
 		private void ViewModel_RestoringBackup(object sender, EventArgs<IBackgroundTask> e)
@@ -2211,7 +2241,7 @@ namespace Nexus.Client
 		{
 			if (InvokeRequired)
 			{
-				Invoke((Action<object, EventArgs<IBackgroundTask>>)ViewModel_CreatingBackup, sender, e);
+				Invoke((Action<object, EventArgs<IBackgroundTask>>)ViewModel_PurgingLooseFiles, sender, e);
 				return;
 			}
 			ProgressDialog.ShowDialog(this, e.Argument, false);
@@ -2576,7 +2606,8 @@ namespace Nexus.Client
 											return;
 										}
 										mopCurrentProfile.Name = pdDialog.EnteredText;
-										ViewModel.ProfileManager.UpdateProfile(mopCurrentProfile, null, null, null);
+										string strError;
+										ViewModel.ProfileManager.UpdateProfile(mopCurrentProfile, null, null, null, out strError);
 									}
 								}
 							}
@@ -2601,7 +2632,14 @@ namespace Nexus.Client
 											return;
 										}
 										mopCurrent.Name = pdDialog.EnteredText;
-										ViewModel.ProfileManager.UpdateProfile(mopCurrent, null, null, null);
+										string strError;
+										ViewModel.ProfileManager.UpdateProfile(mopCurrent, null, null, null, out strError);
+
+										if (!string.IsNullOrEmpty(strError))
+										{
+											strError = strError + Environment.NewLine + Environment.NewLine + "Unable to automatically save the profile file, please close the program blocking the reported file and manually click on Save Profile from the profiles context menu";
+											MessageBox.Show(strError, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+										}
 										BindProfileCommands();
 									}
 								}
@@ -2632,7 +2670,14 @@ namespace Nexus.Client
 									if ((ViewModel.PluginManager != null) && ((ViewModel.PluginManager.ActivePlugins != null) && (ViewModel.PluginManager.ActivePlugins.Count > 0)))
 										strOptionalFiles = ViewModel.GameMode.GetOptionalFilesList(ViewModel.PluginManager.ActivePlugins.Select(x => x.Filename).ToArray());
 
-								ViewModel.ProfileManager.UpdateProfile(mopUpdate, bteIniEdits, bteNewLoadOrder, strOptionalFiles);
+								string strError;
+								ViewModel.ProfileManager.UpdateProfile(mopUpdate, bteIniEdits, bteNewLoadOrder, strOptionalFiles, out strError);
+
+								if (!string.IsNullOrEmpty(strError))
+								{
+									strError = strError + Environment.NewLine + Environment.NewLine + "Unable to automatically save the profile file, please close the program blocking the reported file and manually click on Save Profile from the profiles context menu";
+									MessageBox.Show(strError, "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+								}
 								BindProfileCommands();
 							}
 							break;
